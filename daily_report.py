@@ -15,11 +15,12 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-# Gmail・Google Docs の読み書き権限
+# Gmail・Google Docs・Google Calendar の読み書き権限
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/calendar.readonly",
 ]
 
 CREDENTIALS_FILE = "credentials.json"
@@ -92,8 +93,44 @@ def _extract_body(payload: dict) -> str:
     return ""
 
 
-def summarize_with_claude(emails: list[dict], today: datetime.date) -> dict:
-    """Claude AIにメール一覧を渡して日報の各セクションを生成させる。"""
+def get_week_events(calendar_service) -> list[dict]:
+    """今日を含む1週間のGoogle Calendarイベントを取得する。"""
+    today = datetime.date.today()
+    week_start = today
+    week_end = today + datetime.timedelta(days=7)
+
+    events_result = calendar_service.events().list(
+        calendarId="primary",
+        timeMin=datetime.datetime.combine(week_start, datetime.time.min).isoformat() + "Z",
+        timeMax=datetime.datetime.combine(week_end, datetime.time.min).isoformat() + "Z",
+        maxResults=100,
+        singleEvents=True,
+        orderBy="startTime"
+    ).execute()
+
+    events = events_result.get("items", [])
+    formatted_events = []
+
+    for event in events:
+        start = event.get("start", {})
+        end = event.get("end", {})
+        summary = event.get("summary", "(タイトルなし)")
+
+        start_time = start.get("dateTime") or start.get("date")
+        end_time = end.get("dateTime") or end.get("date")
+
+        formatted_events.append({
+            "title": summary,
+            "start": start_time,
+            "end": end_time,
+            "description": event.get("description", ""),
+        })
+
+    return formatted_events
+
+
+def summarize_with_claude(emails: list[dict], events: list[dict], today: datetime.date) -> dict:
+    """Claude AIにメール・カレンダーイベント一覧を渡して日報の各セクションを生成させる。"""
     client = anthropic.Anthropic()
 
     if not emails:
@@ -108,9 +145,26 @@ def summarize_with_claude(emails: list[dict], today: datetime.date) -> dict:
             )
         email_text = "\n".join(lines)
 
-    prompt = f"""以下は {today.strftime('%Y年%m月%d日')} に受信・送信したメールの一覧です。
+    if not events:
+        event_text = "（1週間のカレンダーイベントはありません）"
+    else:
+        lines = []
+        for i, ev in enumerate(events, 1):
+            lines.append(
+                f"[{i}] {ev['title']}\n"
+                f"    開始: {ev['start']} / 終了: {ev['end']}"
+            )
+            if ev.get("description"):
+                lines.append(f"    説明: {ev['description'][:200]}")
+        event_text = "\n".join(lines)
 
+    prompt = f"""以下は {today.strftime('%Y年%m月%d日')} に受信・送信したメールと、今後1週間のカレンダーイベントの一覧です。
+
+【メール】
 {email_text}
+
+【1週間のカレンダーイベント】
+{event_text}
 
 これらをもとに、日報の各セクションを日本語で作成してください。
 出力は必ず以下のJSON形式で返してください（コードブロック不要）：
@@ -183,13 +237,18 @@ def main():
     gmail_service = get_google_service("gmail", "v1")
     docs_service = get_google_service("docs", "v1")
     drive_service = get_google_service("drive", "v3")
+    calendar_service = get_google_service("calendar", "v3")
 
     print("今日のメールを取得中...")
     emails = get_today_emails(gmail_service)
     print(f"  取得件数: {len(emails)}件")
 
+    print("1週間のカレンダーイベントを取得中...")
+    events = get_week_events(calendar_service)
+    print(f"  取得件数: {len(events)}件")
+
     print("Claude AIで日報を生成中...")
-    sections = summarize_with_claude(emails, today)
+    sections = summarize_with_claude(emails, events, today)
 
     report_text = build_report_text(today, sections)
     print("\n--- 生成された日報 ---")
