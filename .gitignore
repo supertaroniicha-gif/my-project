@@ -3,3 +3,6 @@ token.json
 __pycache__/
 *.pyc
 .env
+business_cards.xlsx
+cards_data.json
+cards_images/
