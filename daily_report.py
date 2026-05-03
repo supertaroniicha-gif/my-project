@@ -129,6 +129,81 @@ def get_week_events(calendar_service) -> list[dict]:
     return formatted_events
 
 
+def get_free_slots(events: list[dict], work_start_hour: int = 9, work_end_hour: int = 18) -> list[dict]:
+    """イベント一覧から空き時間を計算する（営業時間内）。"""
+    from datetime import datetime as dt
+
+    today = datetime.date.today()
+    week_end = today + datetime.timedelta(days=7)
+    free_slots = []
+
+    current_date = today
+    while current_date < week_end:
+        day_start = datetime.datetime.combine(current_date, datetime.time(work_start_hour, 0))
+        day_end = datetime.datetime.combine(current_date, datetime.time(work_end_hour, 0))
+
+        day_events = []
+        for event in events:
+            try:
+                event_start_str = event["start"]
+                event_end_str = event["end"]
+
+                if isinstance(event_start_str, str):
+                    if "T" in event_start_str:
+                        event_start = dt.fromisoformat(event_start_str.replace("Z", "+00:00"))
+                    else:
+                        event_start = dt.combine(
+                            datetime.date.fromisoformat(event_start_str),
+                            datetime.time(0, 0)
+                        )
+                    if isinstance(event_end_str, str):
+                        if "T" in event_end_str:
+                            event_end = dt.fromisoformat(event_end_str.replace("Z", "+00:00"))
+                        else:
+                            event_end = dt.combine(
+                                datetime.date.fromisoformat(event_end_str),
+                                datetime.time(0, 0)
+                            )
+
+                        if event_start.date() == current_date or event_end.date() == current_date:
+                            day_events.append({
+                                "start": event_start,
+                                "end": event_end,
+                                "title": event["title"]
+                            })
+            except (ValueError, AttributeError):
+                pass
+
+        day_events.sort(key=lambda x: x["start"])
+
+        last_end = day_start
+        for event in day_events:
+            if event["start"] > last_end:
+                gap_hours = (event["start"] - last_end).total_seconds() / 3600
+                if gap_hours > 0.5:
+                    free_slots.append({
+                        "date": current_date.strftime("%Y年%m月%d日"),
+                        "start": last_end.strftime("%H:%M"),
+                        "end": event["start"].strftime("%H:%M"),
+                        "duration_hours": round(gap_hours, 1),
+                    })
+            last_end = max(last_end, event["end"])
+
+        if last_end < day_end:
+            gap_hours = (day_end - last_end).total_seconds() / 3600
+            if gap_hours > 0.5:
+                free_slots.append({
+                    "date": current_date.strftime("%Y年%m月%d日"),
+                    "start": last_end.strftime("%H:%M"),
+                    "end": day_end.strftime("%H:%M"),
+                    "duration_hours": round(gap_hours, 1),
+                })
+
+        current_date += datetime.timedelta(days=1)
+
+    return free_slots
+
+
 def summarize_with_claude(emails: list[dict], events: list[dict], today: datetime.date) -> dict:
     """Claude AIにメール・カレンダーイベント一覧を渡して日報の各セクションを生成させる。"""
     client = anthropic.Anthropic()
@@ -247,7 +322,15 @@ def main():
     events = get_week_events(calendar_service)
     print(f"  取得件数: {len(events)}件")
 
-    print("Claude AIで日報を生成中...")
+    print("\n空き予定を計算中...")
+    free_slots = get_free_slots(events)
+    print(f"  空き時間: {len(free_slots)}件")
+    if free_slots:
+        print("  【1週間の空き予定】")
+        for slot in free_slots[:10]:
+            print(f"    {slot['date']} {slot['start']}～{slot['end']} ({slot['duration_hours']}時間)")
+
+    print("\nClaude AIで日報を生成中...")
     sections = summarize_with_claude(emails, events, today)
 
     report_text = build_report_text(today, sections)
