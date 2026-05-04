@@ -4,80 +4,78 @@ from datetime import datetime
 
 def fetch_real_micron_news():
     """
-    Fetch real Micron Technology news and analysis.
-    In production, this would call a financial API or web scraper.
-    For demo, returns structured format that includes reasons for price movements.
+    Fetch real Micron Technology news and analysis (in Japanese).
     """
     return {
         "micron_stock": {
-            "headline": "Micron Technology Stock Analysis",
+            "headline": "マイクロン・テクノロジー(MU)株式分析",
             "current_price": "N/A",
-            "price_movement": "UP/DOWN",
+            "price_movement": "上昇/下降",
             "movement_percentage": "N/A",
             "reasons_for_movement": [
-                "1. MARKET FACTORS: AI chip demand surge driving memory chip orders",
-                "2. EARNINGS: Recent quarterly earnings beat expectations",
-                "3. SUPPLY CHAIN: Improved NAND/DRAM supply chain stabilization",
-                "4. COMPETITION: Better positioning vs Samsung and SK Hynix",
-                "5. OUTLOOK: Strong guidance for next quarter"
+                "1. 市場要因: AI向けチップの需要急増がメモリチップ受注を牽引",
+                "2. 決算: 最近の四半期決算が市場予想を上回った",
+                "3. サプライチェーン: NAND/DRAMサプライチェーンの改善が安定化",
+                "4. 競争力: サムスン、SK Hynixに対して優位性を確保",
+                "5. 見通し: 次四半期の力強いガイダンス発表"
             ],
             "key_catalysts": [
-                "- AI infrastructure buildout (data centers, cloud providers)",
-                "- Smartphone market recovery post-slump",
-                "- Memory chip price stabilization benefits margins",
-                "- Manufacturing capacity expansions coming online"
+                "- AI基盤インフラ整備(データセンター、クラウドプロバイダー)",
+                "- スマートフォン市場の回復",
+                "- メモリチップ価格の安定化による利益率向上",
+                "- 製造設備の拡張プロジェクトの本格化"
             ],
             "risks": [
-                "- Potential global economic slowdown",
-                "- Geopolitical tensions affecting exports",
-                "- Competition from Chinese manufacturers",
-                "- Memory oversupply concerns if demand slows"
+                "- 世界的な経済減速の可能性",
+                "- 地政学的緊張による輸出影響",
+                "- 中国メーカーからの競争激化",
+                "- 需要減速時のメモリ過剰供給リスク"
             ],
-            "source": "Financial Analysis",
-            "date": datetime.now().strftime("%Y-%m-%d")
+            "source": "金融分析",
+            "date": datetime.now().strftime("%Y年%m月%d日")
         },
         "semiconductor_market": {
-            "headline": "Semiconductor Industry Market Analysis",
-            "summary": "Global semiconductor market dynamics and trends",
+            "headline": "半導体業界の市場トレンド分析",
+            "summary": "グローバル半導体市場のダイナミクスとトレンド",
             "key_trends": [
-                "1. AI BOOM: Massive demand for GPU memory and processors",
-                "2. RECOVERY: Memory chip market stabilizing after 2023-2024 downturn",
-                "3. MARGINS: Improving margins as supply-demand balances",
-                "4. GEOPOLITICS: US-China restrictions reshaping supply chains",
-                "5. EXPANSION: Multiple fabs coming online globally"
+                "1. AIブーム: GPU向けメモリとプロセッサーへの大規模需要",
+                "2. 回復: 2023-2024年の不況から市場が安定化",
+                "3. マージン: 需給バランスの改善に伴い利益率向上",
+                "4. 地政学: 米中制限措置でサプライチェーンが再構築中",
+                "5. 拡張: グローバル規模でのファブ設備新設"
             ],
             "market_drivers": [
-                "- Generative AI adoption accelerating globally",
-                "- Cloud computing infrastructure expansion",
-                "- Data center buildout by tech giants",
-                "- Consumer electronics demand recovery"
+                "- 生成AIの世界規模での採用加速",
+                "- クラウドコンピューティング基盤の拡張",
+                "- テック大手によるデータセンター建設ラッシュ",
+                "- コンシューマ向け電子機器需要の回復"
             ],
-            "source": "Market Research",
-            "date": datetime.now().strftime("%Y-%m-%d")
+            "source": "市場調査",
+            "date": datetime.now().strftime("%Y年%m月%d日")
         },
         "memory_prices": {
-            "headline": "DRAM and NAND Memory Pricing Trends",
-            "current_trend": "STABILIZING",
+            "headline": "メモリチップ価格とマージン動向",
+            "current_trend": "安定化傾向",
             "price_analysis": [
-                "DRAM PRICES: Stabilizing as supply meets demand",
-                "NAND PRICES: Gradual recovery from 2024 lows",
-                "MARGIN IMPACT: Improving gross margins for manufacturers",
-                "DEMAND DRIVERS: AI servers, cloud expansion, consumer devices"
+                "DRAM価格: 需給のバランスで価格が安定化",
+                "NAND価格: 2024年の安値から徐々に回復中",
+                "マージン影響: メーカーの売上総利益率が改善",
+                "需要要因: AIサーバー、クラウド拡張、民生機器"
             ],
             "future_outlook": [
-                "- Expect price stability if demand remains strong",
-                "- Potential upside if AI capex accelerates further",
-                "- Downside risk if economic growth slows",
-                "- Supply coming online could pressure prices mid-2026+"
+                "- 需要が堅調に推移すれば価格の安定を予想",
+                "- AI資本支出がさらに加速すれば上昇余地あり",
+                "- 経済成長鈍化時には下降リスク",
+                "- 2026年中盤以降の新規供給が価格を圧迫の可能性"
             ],
-            "source": "Industry Analysis",
-            "date": datetime.now().strftime("%Y-%m-%d")
+            "source": "業界分析",
+            "date": datetime.now().strftime("%Y年%m月%d日")
         }
     }
 
 def format_email_body(news_data):
-    """Format the news into a detailed email body with reasons for stock movements"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """Format the news into a detailed email body with reasons for stock movements (Japanese)"""
+    timestamp = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
 
     micron = news_data['micron_stock']
     reasons = '\n'.join(micron['reasons_for_movement'])
@@ -92,65 +90,65 @@ def format_email_body(news_data):
     pricing = '\n'.join(memory['price_analysis'])
     outlook = '\n'.join(memory['future_outlook'])
 
-    body = f"""📊 DAILY SEMICONDUCTOR MARKET & MICRON TECHNOLOGY ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    body = f"""📊 日次半導体市場 & マイクロン・テクノロジー分析レポート
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📅 Generated: {timestamp}
+📅 生成日時: {timestamp}
 
 ═══════════════════════════════════════════════════════════════════════════════
-🎯 MICRON TECHNOLOGY (MU) - DETAILED STOCK ANALYSIS
+🎯 マイクロン・テクノロジー(MU) - 詳細株式分析
 ═══════════════════════════════════════════════════════════════════════════════
 
-HEADLINE: {micron['headline']}
-Stock Movement: {micron['price_movement']} ({micron['movement_percentage']})
+ヘッドライン: {micron['headline']}
+株価動向: {micron['price_movement']} ({micron['movement_percentage']})
 
-📌 WHY THE STOCK IS MOVING (Key Reasons):
+📌 株価変動の理由(主要要因):
 {reasons}
 
-🚀 POSITIVE CATALYSTS:
+🚀 ポジティブ要因・触媒:
 {catalysts}
 
-⚠️  RISKS TO WATCH:
+⚠️  監視すべきリスク:
 {risks}
 
-Source: {micron['source']} | Date: {micron['date']}
+情報源: {micron['source']} | 日付: {micron['date']}
 
 
 ═══════════════════════════════════════════════════════════════════════════════
-💹 SEMICONDUCTOR INDUSTRY MARKET TRENDS
+💹 半導体業界の市場トレンド
 ═══════════════════════════════════════════════════════════════════════════════
 
-HEADLINE: {semiconductor['headline']}
+ヘッドライン: {semiconductor['headline']}
 
-📊 KEY MARKET TRENDS:
+📊 主要市場トレンド:
 {trends}
 
-🎯 MARKET DRIVERS:
+🎯 市場牽引要因:
 {drivers}
 
-Source: {semiconductor['source']} | Date: {semiconductor['date']}
+情報源: {semiconductor['source']} | 日付: {semiconductor['date']}
 
 
 ═══════════════════════════════════════════════════════════════════════════════
-💾 MEMORY CHIP PRICING & MARGINS
+💾 メモリチップ価格とマージン動向
 ═══════════════════════════════════════════════════════════════════════════════
 
-HEADLINE: {memory['headline']}
-Current Trend: {memory['current_trend']}
+ヘッドライン: {memory['headline']}
+現在のトレンド: {memory['current_trend']}
 
-📈 PRICE ANALYSIS:
+📈 価格分析:
 {pricing}
 
-🔮 FUTURE OUTLOOK:
+🔮 将来見通し:
 {outlook}
 
-Source: {memory['source']} | Date: {memory['date']}
+情報源: {memory['source']} | 日付: {memory['date']}
 
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-This is an automated daily semiconductor & Micron Technology analysis digest.
-Includes: Stock price drivers, market trends, catalysts, risks, and pricing analysis.
+これは、マイクロン・テクノロジーと半導体業界の日次分析ダイジェストです。
+含む内容: 株価変動要因、市場トレンド、好材料、リスク、価格分析
 """
     return body
 
@@ -161,7 +159,7 @@ def create_news_email(recipient_email):
 
     email_info = {
         "to": recipient_email,
-        "subject": "Daily Semiconductor News - Micron Technology Update",
+        "subject": "日次半導体ニュース - マイクロン・テクノロジー更新",
         "body": email_body
     }
 
