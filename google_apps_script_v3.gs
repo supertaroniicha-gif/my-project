@@ -1,7 +1,19 @@
 const FEEDBACK_SHEET = 'フィードバック入力';
 const STATS_SHEET = '統計ダッシュボード';
 
-const ITEMS = ['アイスブレイク', 'ヒアリング', '提案', '料金折衝', 'コミュニケーション'];
+// 現在のシート列構成:
+// A:日付 | B:Good/More | C:項目 | D:詳細 | E:Next Action① | F:Next Action② | G:FB回数 | H:メモ
+
+const ITEMS = [
+  'アイスブレイク',
+  'ヒアリング',
+  'NVC',
+  '提案',
+  '料金折衝',
+  'コミュニケーション',
+  '目標設定',
+  '深掘り'
+];
 
 const NEXT_ACTIONS = [
   'アイスブレイク拡張',
@@ -34,6 +46,9 @@ const NEXT_ACTIONS = [
   '段階的説得',
   'ラポール深化',
   '信頼構築',
+  '自分も楽しく',
+  '下げたら上げる',
+  'うまくいったとき、そうでないときの差',
   'テスト成績分析',
   '得意科目活用',
   '苦手科目克服',
@@ -42,13 +57,10 @@ const NEXT_ACTIONS = [
   'ADHD対応',
   '字の書き方指導',
   '途中式指導',
-  'メモリ運用改善',
   '集中力向上',
   '動機付け強化',
-  'ロールモデル提示',
   '未来像共有',
   '小さな成功体験',
-  '褒める タイミング調整',
   'フィードバックの具体性',
   '行動分析',
   '思考パターン改善'
@@ -57,61 +69,95 @@ const NEXT_ACTIONS = [
 function initializeSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  // フィードバック入力シート
   let feedbackSheet = ss.getSheetByName(FEEDBACK_SHEET);
   if (!feedbackSheet) {
     feedbackSheet = ss.insertSheet(FEEDBACK_SHEET);
   }
 
-  const headers = ['日付', '曜日', '項目', 'Good/More', '詳細', 'Next Action①', 'Next Action②', 'FB回数'];
+  // ヘッダー設定
+  const headers = ['日付', 'Good/More', '項目', '詳細', 'Next Action①', 'Next Action②', 'FB回数', 'メモ'];
   feedbackSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
+  // ヘッダーのスタイル
   const headerRange = feedbackSheet.getRange(1, 1, 1, headers.length);
-  headerRange.setFontWeight('bold').setBackground('#1F4E78').setFontColor('white');
-  headerRange.setVerticalAlignment('middle');
+  headerRange
+    .setBackground('#1F4E78')
+    .setFontColor('#FFFFFF')
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setVerticalAlignment('middle')
+    .setHorizontalAlignment('center');
+  feedbackSheet.setRowHeight(1, 40);
 
-  // Set column widths
-  feedbackSheet.setColumnWidth(1, 100);  // 日付
-  feedbackSheet.setColumnWidth(2, 80);   // 曜日
-  feedbackSheet.setColumnWidth(3, 120);  // 項目
-  feedbackSheet.setColumnWidth(4, 100);  // Good/More
-  feedbackSheet.setColumnWidth(5, 200);  // 詳細
-  feedbackSheet.setColumnWidth(6, 180);  // Next Action①
-  feedbackSheet.setColumnWidth(7, 180);  // Next Action②
-  feedbackSheet.setColumnWidth(8, 80);   // FB回数
+  // 列幅最適化
+  feedbackSheet.setColumnWidth(1, 110);  // 日付
+  feedbackSheet.setColumnWidth(2, 100);  // Good/More
+  feedbackSheet.setColumnWidth(3, 130);  // 項目
+  feedbackSheet.setColumnWidth(4, 280);  // 詳細
+  feedbackSheet.setColumnWidth(5, 180);  // Next Action①
+  feedbackSheet.setColumnWidth(6, 180);  // Next Action②
+  feedbackSheet.setColumnWidth(7, 80);   // FB回数
+  feedbackSheet.setColumnWidth(8, 220);  // メモ
 
-  // Data validation for Good/More (Column D)
+  // 既存データの色を再適用
+  applyColorToExistingData(feedbackSheet);
+
+  // ドロップダウン: Good/More (B列)
   const goodMoreDV = SpreadsheetApp.newDataValidation()
     .requireValueInList(['Good', 'More'], true)
     .build();
-  feedbackSheet.getRange('D2:D101').setDataValidation(goodMoreDV);
+  feedbackSheet.getRange('B2:B200').setDataValidation(goodMoreDV);
 
-  // Data validation for Item (Column C)
+  // ドロップダウン: 項目 (C列)
   const itemDV = SpreadsheetApp.newDataValidation()
     .requireValueInList(ITEMS, true)
     .setAllowInvalid(true)
     .build();
-  feedbackSheet.getRange('C2:C101').setDataValidation(itemDV);
+  feedbackSheet.getRange('C2:C200').setDataValidation(itemDV);
 
-  // Data validation for Next Action① (Column F)
+  // ドロップダウン: Next Action① (E列)
   const nextActionDV1 = SpreadsheetApp.newDataValidation()
     .requireValueInList(NEXT_ACTIONS, true)
     .setAllowInvalid(true)
     .build();
-  feedbackSheet.getRange('F2:F101').setDataValidation(nextActionDV1);
+  feedbackSheet.getRange('E2:E200').setDataValidation(nextActionDV1);
 
-  // Data validation for Next Action② (Column G)
+  // ドロップダウン: Next Action② (F列)
   const nextActionDV2 = SpreadsheetApp.newDataValidation()
     .requireValueInList(NEXT_ACTIONS, true)
     .setAllowInvalid(true)
     .build();
-  feedbackSheet.getRange('G2:G101').setDataValidation(nextActionDV2);
+  feedbackSheet.getRange('F2:F200').setDataValidation(nextActionDV2);
 
+  // 統計ダッシュボードシート
   let statsSheet = ss.getSheetByName(STATS_SHEET);
   if (!statsSheet) {
     statsSheet = ss.insertSheet(STATS_SHEET);
   }
 
   updateStatistics();
+
+  SpreadsheetApp.getUi().alert('✅ 初期化完了！\nドロップダウンと色分けが設定されました。');
+}
+
+function applyColorToExistingData(feedbackSheet) {
+  const lastRow = feedbackSheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const goodFill = '#D4EDDA';
+  const moreFill = '#FFF3CD';
+
+  for (let r = 2; r <= lastRow; r++) {
+    const cell = feedbackSheet.getRange(r, 2);
+    const val = cell.getValue();
+    if (val === 'Good') {
+      cell.setBackground(goodFill).setFontColor('#155724').setFontWeight('bold');
+    } else if (val === 'More') {
+      cell.setBackground(moreFill).setFontColor('#856404').setFontWeight('bold');
+    }
+    feedbackSheet.setRowHeight(r, 35);
+  }
 }
 
 function onEdit(e) {
@@ -123,33 +169,21 @@ function onEdit(e) {
   const row = range.getRow();
   const col = range.getColumn();
 
-  if (row === 1) return; // Skip header row
+  if (row === 1) return;
 
-  // Auto-fill day of week when date is entered in column A
-  if (col === 1) {
-    const dateValue = range.getValue();
-    if (dateValue && dateValue instanceof Date) {
-      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateValue.getDay()];
-      sheet.getRange(row, 2).setValue(dayOfWeek);
-    }
-  }
-
-  // Color coding for Good/More (Column D)
-  if (col === 4) {
+  // Good/More (B列=2) の色分け
+  if (col === 2) {
     const value = range.getValue();
     if (value === 'Good') {
-      range.setBackground('#D4EDDA');
-      range.setFontColor('#155724');
+      range.setBackground('#D4EDDA').setFontColor('#155724').setFontWeight('bold');
     } else if (value === 'More') {
-      range.setBackground('#FFF3CD');
-      range.setFontColor('#856404');
+      range.setBackground('#FFF3CD').setFontColor('#856404').setFontWeight('bold');
     } else {
-      range.setBackground('#FFFFFF');
+      range.setBackground('#FFFFFF').setFontColor('#000000').setFontWeight('normal');
     }
-    range.setFontWeight('bold');
   }
 
-  // Auto-update statistics
+  // 統計を自動更新
   updateStatistics();
 }
 
@@ -160,85 +194,131 @@ function updateStatistics() {
 
   if (!feedbackSheet || !statsSheet) return;
 
-  // Get feedback data (columns A-H, rows 2-101)
-  const allData = feedbackSheet.getRange('A2:H101').getValues();
-  const feedbacks = allData.filter(row => row[0] !== '' && row[3] !== '');
+  const allData = feedbackSheet.getRange('A2:H200').getValues();
+  const feedbacks = allData.filter(row => row[0] !== '' && row[1] !== '');
+
+  statsSheet.clear();
 
   if (feedbacks.length === 0) {
-    statsSheet.clear();
     statsSheet.getRange('A1').setValue('データを入力してください');
     return;
   }
 
-  // Count Good/More (column D is index 3)
-  const goodCount = feedbacks.filter(row => row[3] === 'Good').length;
-  const moreCount = feedbacks.filter(row => row[3] === 'More').length;
+  const goodCount = feedbacks.filter(row => row[1] === 'Good').length;
+  const moreCount = feedbacks.filter(row => row[1] === 'More').length;
   const totalCount = goodCount + moreCount;
 
-  // Aggregate Next Actions (columns F and G are indices 5 and 6)
+  // 項目別集計
+  const itemStats = {};
+  feedbacks.forEach(row => {
+    const item = row[2] || '未分類';
+    if (!itemStats[item]) itemStats[item] = { good: 0, more: 0 };
+    if (row[1] === 'Good') itemStats[item].good++;
+    if (row[1] === 'More') itemStats[item].more++;
+  });
+
+  // Next Action集計
   const nextActions = {};
   feedbacks.forEach(row => {
-    [row[5], row[6]].forEach(action => {
+    [row[4], row[5]].forEach(action => {
       if (action && action.trim() !== '') {
-        const normalizedAction = action.trim();
-        nextActions[normalizedAction] = (nextActions[normalizedAction] || 0) + 1;
+        const a = action.trim();
+        nextActions[a] = (nextActions[a] || 0) + 1;
       }
     });
   });
 
-  // Clear and update stats sheet
-  statsSheet.clear();
+  // ===== 統計ダッシュボード描画 =====
+  let r = 1;
 
-  let row = 1;
-  statsSheet.getRange(row, 1, 1, 2).setValues([['📊 統計ダッシュボード', '']]);
-  statsSheet.getRange(row, 1).setFontSize(14).setFontWeight('bold');
+  // タイトル
+  statsSheet.getRange(r, 1, 1, 4).merge()
+    .setValue('📊 フィードバック統計ダッシュボード')
+    .setFontSize(16).setFontWeight('bold')
+    .setBackground('#1F4E78').setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  statsSheet.setRowHeight(r, 45);
+  r += 2;
 
-  row = 3;
-  statsSheet.getRange(row, 1, 1, 2).setValues([['総フィードバック数', totalCount]]);
-  statsSheet.getRange(row, 1).setFontWeight('bold');
-  row++;
+  // サマリーセクション
+  statsSheet.getRange(r, 1, 1, 2).setValues([['📈 サマリー', '']])
+    .setFontWeight('bold').setFontSize(12)
+    .setBackground('#E8F0FE');
+  r++;
 
-  statsSheet.getRange(row, 1, 1, 2).setValues([['Good数', goodCount]]);
-  statsSheet.getRange(row, 2).setBackground('#D4EDDA').setFontWeight('bold');
-  row++;
+  const summaryData = [
+    ['総フィードバック数', totalCount],
+    ['Good 数', goodCount],
+    ['More 数', moreCount],
+    ['Good 率 (%)', totalCount > 0 ? Math.round(goodCount / totalCount * 100) + '%' : '-'],
+    ['More 率 (%)', totalCount > 0 ? Math.round(moreCount / totalCount * 100) + '%' : '-'],
+  ];
+  summaryData.forEach(([label, val], i) => {
+    statsSheet.getRange(r, 1).setValue(label).setFontWeight('bold');
+    const valCell = statsSheet.getRange(r, 2).setValue(val);
+    if (label === 'Good 数' || label === 'Good 率 (%)') valCell.setBackground('#D4EDDA').setFontWeight('bold');
+    if (label === 'More 数' || label === 'More 率 (%)') valCell.setBackground('#FFF3CD').setFontWeight('bold');
+    r++;
+  });
+  r++;
 
-  statsSheet.getRange(row, 1, 1, 2).setValues([['More数', moreCount]]);
-  statsSheet.getRange(row, 2).setBackground('#FFF3CD').setFontWeight('bold');
-  row++;
+  // 項目別集計セクション
+  statsSheet.getRange(r, 1, 1, 3).setValues([['🗂️ 項目別 Good/More', '', '']])
+    .setFontWeight('bold').setFontSize(12)
+    .setBackground('#E8F0FE');
+  r++;
 
-  if (totalCount > 0) {
-    statsSheet.getRange(row, 1, 1, 2).setValues([['Good率(%)', Math.round(goodCount / totalCount * 100)]]);
-  }
+  statsSheet.getRange(r, 1, 1, 3).setValues([['項目', 'Good', 'More']])
+    .setFontWeight('bold').setBackground('#F3F3F3');
+  r++;
+
+  Object.entries(itemStats).sort((a, b) => (b[1].good + b[1].more) - (a[1].good + a[1].more)).forEach(([item, cnt]) => {
+    statsSheet.getRange(r, 1).setValue(item);
+    statsSheet.getRange(r, 2).setValue(cnt.good).setBackground('#D4EDDA');
+    statsSheet.getRange(r, 3).setValue(cnt.more).setBackground('#FFF3CD');
+    r++;
+  });
+  r++;
 
   // Next Action ランキング
-  row += 2;
-  statsSheet.getRange(row, 1, 1, 2).setValues([['Next Action ランキング', '']]);
-  statsSheet.getRange(row, 1, 1, 2).setFontWeight('bold').setBackground('#E8F0FE');
+  statsSheet.getRange(r, 1, 1, 2).setValues([['🏆 Next Action ランキング', '']])
+    .setFontWeight('bold').setFontSize(12)
+    .setBackground('#E8F0FE');
+  r++;
 
-  row++;
-  statsSheet.getRange(row, 1, 1, 2).setValues([['項目', '頻度']]);
-  statsSheet.getRange(row, 1, 1, 2).setFontWeight('bold').setBackground('#F3F3F3');
+  statsSheet.getRange(r, 1, 1, 2).setValues([['アクション', '頻度']])
+    .setFontWeight('bold').setBackground('#F3F3F3');
+  r++;
 
-  const sortedActions = Object.entries(nextActions)
+  Object.entries(nextActions)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 15);
+    .slice(0, 15)
+    .forEach(([action, count]) => {
+      statsSheet.getRange(r, 1).setValue(action);
+      statsSheet.getRange(r, 2).setValue(count).setBackground('#FFF9E6');
+      r++;
+    });
 
-  sortedActions.forEach(([action, count]) => {
-    row++;
-    statsSheet.getRange(row, 1, 1, 2).setValues([[action, count]]);
-    if (count > 0) {
-      statsSheet.getRange(row, 2).setBackground('#FFF9E6');
-    }
-  });
-
-  statsSheet.setColumnWidth(1, 250);
-  statsSheet.setColumnWidth(2, 100);
+  // 列幅設定
+  statsSheet.setColumnWidth(1, 260);
+  statsSheet.setColumnWidth(2, 80);
+  statsSheet.setColumnWidth(3, 80);
 }
 
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('フィードバック管理')
-    .addItem('初期化', 'initializeSheet')
-    .addItem('統計を更新', 'updateStatistics')
+  SpreadsheetApp.getUi()
+    .createMenu('フィードバック管理')
+    .addItem('🔧 初期化（初回セットアップ）', 'initializeSheet')
+    .addItem('📊 統計を更新', 'updateStatistics')
+    .addItem('🎨 色を再適用', 'reapplyColors')
     .addToUi();
+}
+
+function reapplyColors() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const feedbackSheet = ss.getSheetByName(FEEDBACK_SHEET);
+  if (feedbackSheet) {
+    applyColorToExistingData(feedbackSheet);
+    SpreadsheetApp.getUi().alert('✅ 色の再適用が完了しました！');
+  }
 }
