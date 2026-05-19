@@ -12,12 +12,15 @@ import datetime
 from email.utils import parsedate_to_datetime
 
 import anthropic
+from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from azure.identity import InteractiveBrowserCredential
+from azure.identity import ClientSecretCredential
 from msgraph.core import GraphClient
+
+load_dotenv()
 
 # Gmail・Google Docs の読み書き権限
 SCOPES = [
@@ -51,7 +54,21 @@ def get_google_service(api_name: str, api_version: str):
 
 def get_outlook_graph_client() -> GraphClient:
     """Outlook (Microsoft Graph) API クライアントを認証して返す。"""
-    credential = InteractiveBrowserCredential()
+    tenant_id = os.getenv("AZURE_TENANT_ID")
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    client_secret = os.getenv("AZURE_CLIENT_SECRET")
+
+    if not all([tenant_id, client_id, client_secret]):
+        raise ValueError(
+            "Azure 認証情報が不足しています。"
+            "AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET を設定してください。"
+        )
+
+    credential = ClientSecretCredential(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret
+    )
     scopes = ["https://graph.microsoft.com/.default"]
     return GraphClient(credential=credential, scopes=scopes)
 
