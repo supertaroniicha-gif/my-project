@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
 日報自動生成スクリプト
-Gmail APIで今日のメールを取得し、Claude AIで要約してGoogle Docsに日報を作成する。
+Gmail APIで今日のメールを取得し、Outlook カレンダーから予定を取得、
+Claude AIで要約してGoogle Docsに日報を作成する。
 """
 
 import os
 import base64
+import json
 import datetime
 from email.utils import parsedate_to_datetime
 
@@ -14,6 +16,8 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from azure.identity import InteractiveBrowserCredential
+from msgraph.core import GraphClient
 
 # Gmail・Google Docs の読み書き権限
 SCOPES = [
@@ -24,6 +28,7 @@ SCOPES = [
 
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE = "token.json"
+OUTLOOK_CREDENTIALS_FILE = ".outlook_credentials"
 
 
 def get_google_service(api_name: str, api_version: str):
@@ -42,6 +47,44 @@ def get_google_service(api_name: str, api_version: str):
             token.write(creds.to_json())
 
     return build(api_name, api_version, credentials=creds)
+
+
+def get_outlook_graph_client() -> GraphClient:
+    """Outlook (Microsoft Graph) API クライアントを認証して返す。"""
+    credential = InteractiveBrowserCredential()
+    scopes = ["https://graph.microsoft.com/.default"]
+    return GraphClient(credential=credential, scopes=scopes)
+
+
+def get_today_calendar_events(graph_client: GraphClient) -> list[dict]:
+    """Outlook カレンダーから今日のイベントを取得する。"""
+    today = datetime.date.today()
+    start = datetime.datetime.combine(today, datetime.time.min).isoformat()
+    end = datetime.datetime.combine(today, datetime.time.max).isoformat()
+
+    query_params = {
+        "startDateTime": start,
+        "endDateTime": end,
+    }
+
+    events = []
+    try:
+        response = graph_client.get(
+            "/me/calendarview",
+            params=query_params,
+        )
+        data = response.json()
+        for event in data.get("value", []):
+            events.append({
+                "subject": event.get("subject", "(題目なし)"),
+                "start": event.get("start", {}).get("dateTime", ""),
+                "end": event.get("end", {}).get("dateTime", ""),
+                "organizer": event.get("organizer", {}).get("emailAddress", {}).get("name", ""),
+            })
+    except Exception as e:
+        print(f"Outlook カレンダー取得エラー: {e}")
+
+    return events
 
 
 def get_today_emails(gmail_service) -> list[dict]:
@@ -92,8 +135,8 @@ def _extract_body(payload: dict) -> str:
     return ""
 
 
-def summarize_with_claude(emails: list[dict], today: datetime.date) -> dict:
-    """Claude AIにメール一覧を渡して日報の各セクションを生成させる。"""
+def summarize_with_claude(emails: list[dict], events: list[dict], today: datetime.date) -> dict:
+    """Claude AIにメールとカレンダー情報を渡して日報の各セクションを生成させる。"""
     client = anthropic.Anthropic()
 
     if not emails:
@@ -108,9 +151,25 @@ def summarize_with_claude(emails: list[dict], today: datetime.date) -> dict:
             )
         email_text = "\n".join(lines)
 
-    prompt = f"""以下は {today.strftime('%Y年%m月%d日')} に受信・送信したメールの一覧です。
+    if not events:
+        event_text = "（本日のカレンダーイベントはありません）"
+    else:
+        lines = []
+        for i, ev in enumerate(events, 1):
+            lines.append(
+                f"[{i}] {ev['subject']}\n"
+                f"    開始: {ev['start']} / 終了: {ev['end']}\n"
+                f"    主催者: {ev['organizer']}\n"
+            )
+        event_text = "\n".join(lines)
 
+    prompt = f"""以下は {today.strftime('%Y年%m月%d日')} に受信・送信したメールと、カレンダーに登録されているイベントの一覧です。
+
+【メール一覧】
 {email_text}
+
+【カレンダーイベント】
+{event_text}
 
 これらをもとに、日報の各セクションを日本語で作成してください。
 出力は必ず以下のJSON形式で返してください（コードブロック不要）：
@@ -128,7 +187,6 @@ def summarize_with_claude(emails: list[dict], today: datetime.date) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    import json
     text = message.content[0].text.strip()
     # JSONブロックが含まれている場合は取り出す
     if "```" in text:
@@ -184,12 +242,19 @@ def main():
     docs_service = get_google_service("docs", "v1")
     drive_service = get_google_service("drive", "v3")
 
+    print("Outlook カレンダーに接続中...")
+    graph_client = get_outlook_graph_client()
+
     print("今日のメールを取得中...")
     emails = get_today_emails(gmail_service)
     print(f"  取得件数: {len(emails)}件")
 
+    print("今日のカレンダーイベントを取得中...")
+    events = get_today_calendar_events(graph_client)
+    print(f"  取得件数: {len(events)}件")
+
     print("Claude AIで日報を生成中...")
-    sections = summarize_with_claude(emails, today)
+    sections = summarize_with_claude(emails, events, today)
 
     report_text = build_report_text(today, sections)
     print("\n--- 生成された日報 ---")
